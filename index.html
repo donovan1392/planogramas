@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planogramas por Tienda</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: lista de tiendas a la izquierda (buscador fijo), ficha de la tienda a la derecha con los dos anaqueles uno debajo del otro. */
+:root{
+  --bg:#f3f5f9; --panel:#ffffff; --ink:#15213a; --muted:#5b6780; --line:#dbe1ec;
+  --accent:#1747a6; --accent-soft:#e6edfb;
+  --bebe:#c23a8f; --bebe-soft:#fbe9f4; --deso:#1d6fd1; --deso-soft:#e5f0fc;
+  --warn-bg:#fff3d6; --warn-ink:#7a5200;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1420; --panel:#161e2e; --ink:#e7ecf5; --muted:#9aa6bd; --line:#2a3550;
+  --accent:#7ea6ff; --accent-soft:#1c2a4a;
+  --bebe:#f17cc4; --bebe-soft:#33182b; --deso:#6fb0ff; --deso-soft:#15263f;
+  --warn-bg:#3a2e10; --warn-ink:#f3d27a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1420; --panel:#161e2e; --ink:#e7ecf5; --muted:#9aa6bd; --line:#2a3550;
+  --accent:#7ea6ff; --accent-soft:#1c2a4a;
+  --bebe:#f17cc4; --bebe-soft:#33182b; --deso:#6fb0ff; --deso-soft:#15263f;
+  --warn-bg:#3a2e10; --warn-ink:#f3d27a; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:1500px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:18px}
+h1{font-family:var(--f-display);font-weight:700;font-size:2rem;letter-spacing:.01em;margin:0;line-height:1.05;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0}
+.totals{display:flex;gap:18px;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+.totals div{display:flex;flex-direction:column}
+.totals b{font-family:var(--f-display);font-size:1.6rem;line-height:1}
+.totals span{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.grid{display:grid;grid-template-columns:320px minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+/* lista */
+aside{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);max-height:calc(100vh - 24px)}
+@media (max-width:860px){aside{position:static;max-height:none}}
+.search{padding:12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.search input,.search select{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink)}
+.search input:focus,.search select:focus{outline:2px solid var(--accent);outline-offset:1px}
+.search .row{display:flex;gap:8px}
+.search .row select{flex:1;min-width:0}
+.count{font-size:.8rem;color:var(--muted)}
+.filterchip{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;background:var(--accent-soft);color:var(--accent);padding:3px 8px;border-radius:99px;border:0;cursor:pointer;font:inherit;font-size:.8rem}
+ul.stores{list-style:none;margin:0;padding:4px;overflow:auto;flex:1}
+@media (max-width:860px){ul.stores{max-height:320px}}
+ul.stores button{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;width:100%;padding:8px 10px;border-radius:7px;cursor:pointer}
+ul.stores button:hover{background:var(--bg)}
+ul.stores button:focus-visible{outline:2px solid var(--accent)}
+ul.stores button[aria-current="true"]{background:var(--accent-soft)}
+.sn{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sc{font-size:.78rem;color:var(--muted)}
+.sm{grid-row:1/3;grid-column:2;align-self:center;display:flex;gap:4px;font-family:var(--f-mono);font-size:.72rem}
+.pill{padding:2px 6px;border-radius:5px;white-space:nowrap}
+.pill.b{background:var(--bebe-soft);color:var(--bebe)}
+.pill.d{background:var(--deso-soft);color:var(--deso)}
+.pill.x{background:var(--bg);color:var(--muted)}
+/* ficha */
+main{min-width:0;display:flex;flex-direction:column;gap:18px}
+.store-head{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-wrap:wrap;gap:14px 28px;align-items:center;justify-content:space-between}
+.store-head h2{font-family:var(--f-display);font-size:2.2rem;margin:0;line-height:1;letter-spacing:.01em}
+.meta{color:var(--muted);margin-top:4px}
+.meta code{font-family:var(--f-mono);font-size:.85em}
+.linear{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}
+.lin{padding:8px 14px;border-radius:8px;min-width:108px;font-variant-numeric:tabular-nums}
+.lin small{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.lin strong{font-family:var(--f-display);font-size:1.7rem;line-height:1.1;font-weight:600}
+.lin.b{background:var(--bebe-soft);color:var(--bebe)}
+.lin.d{background:var(--deso-soft);color:var(--deso)}
+.lin.t{background:var(--ink);color:var(--panel)}
+.bar{height:10px;border-radius:5px;display:flex;overflow:hidden;background:var(--bg);margin-top:10px;width:100%}
+.bar i{display:block;height:100%}
+.bar .b{background:var(--bebe)} .bar .d{background:var(--deso)}
+.barlbl{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-top:4px;font-variant-numeric:tabular-nums}
+.pg{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.pg-head{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+.pg-head .cat{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700}
+.pg.b .cat{color:var(--bebe)} .pg.d .cat{color:var(--deso)}
+.pg-head h3{font-family:var(--f-display);font-weight:600;font-size:1.45rem;margin:2px 0 0;line-height:1.1}
+.facts{display:flex;flex-wrap:wrap;gap:6px 20px;font-variant-numeric:tabular-nums}
+.facts div{display:flex;flex-direction:column}
+.facts dt{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.facts dd{margin:0;font-weight:600}
+.facts dd.big{font-family:var(--f-display);font-size:1.5rem;line-height:1}
+.facts code{font-family:var(--f-mono);font-weight:500}
+.note{margin:12px 18px 0;padding:8px 12px;border-radius:7px;background:var(--warn-bg);color:var(--warn-ink);font-size:.88rem}
+.toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 18px 0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{font:inherit;font-size:.85rem;padding:6px 12px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.seg button:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{font:inherit;font-size:.85rem;padding:6px 12px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.imgbox{padding:12px 18px 18px}
+.imgbox button{all:unset;display:block;cursor:zoom-in;width:100%}
+.imgbox img{display:block;width:100%;height:auto;max-height:640px;object-fit:contain;background:#fff;border-radius:6px;border:1px solid var(--line)}
+.imgbox button:focus-visible img{outline:2px solid var(--accent)}
+.empty{padding:28px 18px;color:var(--muted)}
+/* resumen */
+.summary{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 18px}
+.summary h3{font-family:var(--f-display);font-size:1.25rem;margin:0 0 2px}
+.summary p{margin:0 0 10px;color:var(--muted);font-size:.88rem}
+.sumgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:18px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:.88rem}
+th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:6px 8px;border-bottom:1px solid var(--line)}
+td.n,th.n{text-align:right}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--bg)}
+tr.click:focus-visible td{outline:2px solid var(--accent);outline-offset:-2px}
+td code{font-family:var(--f-mono);font-size:.82rem}
+.minibar{display:inline-block;height:8px;border-radius:4px;vertical-align:middle;margin-right:6px}
+/* visor */
+.viewer{position:fixed;inset:0;z-index:50;background:rgba(8,12,22,.92);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.vbar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));color:#fff;flex-wrap:wrap}
+.vbar strong{font-family:var(--f-display);font-size:1.2rem;font-weight:600}
+.vbar .btn{background:#1d2740;color:#fff;border-color:#3a4766}
+.vscroll{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:0 12px 12px}
+.vscroll img{background:#fff;border-radius:4px;max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in}
+.vscroll.real{display:block}
+.vscroll.real img{max-width:none;max-height:none;width:auto;cursor:zoom-out}
+footer{margin-top:22px;color:var(--muted);font-size:.8rem}
+@media (prefers-reduced-motion:no-preference){ul.stores button,.btn,tr.click td{transition:background .12s,border-color .12s,color .12s}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Planogramas por Tienda</h1>
+      <p class="sub">Anaqueles de Bebé Cosméticos y Desodorantes: medida, módulos e imagen de cada planograma asignado.</p>
+    </div>
+    <div class="totals" id="totals"></div>
+  </header>
+
+  <div class="grid">
+    <aside aria-label="Tiendas">
+      <div class="search">
+        <input id="q" type="search" placeholder="Buscar tienda o número (ej. LUZMAR, 2142)" autocomplete="off" aria-label="Buscar tienda">
+        <div class="row">
+          <select id="city" aria-label="Filtrar por ciudad"><option value="">Todas las ciudades</option></select>
+        </div>
+        <div class="row" style="align-items:center;justify-content:space-between">
+          <span class="count" id="count"></span>
+          <button class="filterchip" id="pgfilter" hidden></button>
+        </div>
+      </div>
+      <ul class="stores" id="list"></ul>
+    </aside>
+
+    <main id="main"></main>
+  </div>
+  <footer>Fuente: carpeta PLANOGRAMAS (Escritorio). Asignación tienda–anaquel: «Anaquel - Tienda Desodorantes» (13-oct-26) y «bebe cosmeticos tiendas». Imágenes y medidas tomadas de los PDF de cada planograma. «SKU» = códigos distintos en el planograma.</footer>
+</div>
+
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="Planograma ampliado">
+  <div class="vbar">
+    <strong id="vtitle"></strong>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="vzoom" type="button">Tamaño real</button>
+      <button class="btn" id="vclose" type="button">Cerrar ✕</button>
+    </div>
+  </div>
+  <div class="vscroll" id="vscroll"><img id="vimg" alt=""></div>
+</div>
+
+<script>
+const DATA = {"stores":[{"n":"ACERINA","id":"2311","d":"CDES3A","b":"BBCO5A","c":"Barquisimeto"},{"n":"ACERO","id":"2698","d":"CDES3A","b":"BBCO4A","c":"Puerto Ordaz"},{"n":"ACONCAGUA","id":"2128","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"ADELMIRA","id":"2505","d":"CDES4A","b":"CBBA6A","c":"Calabozo"},{"n":"AGATA","id":"2689","d":"CDES4X","b":"BBCO4A","c":"Araure"},{"n":"AGUAMARINA","id":"2423","d":"CDES4A","b":"CBBA5A","c":"El Tigre"},{"n":"ALBITA","id":"2157","d":"CDES3A","b":"CBBA6A","c":"Caracas"},{"n":"ALFA","id":"2550","d":"CDES4A","b":"CBBA6A","c":"Barinas"},{"n":"ALPES","id":"2281","d":"CDEO3A","b":"CBBA4A","c":"Valencia"},{"n":"ALTOZANO","id":"2170","d":"CDES4A","b":"CBBA6A","c":"San Antonio de Los Altos"},{"n":"ALUMINIO","id":"2699","d":"CDES3A","b":"BBCO4A","c":"Puerto Ordaz"},{"n":"AMATISTA","id":"2272","d":"CDES4X","b":"BBCO5A","c":"Turmero"},{"n":"AMBAR","id":"2140","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"ANGOSTURA","id":"2706","d":"CDES4X","b":"BBCO5A","c":"Ciudad Bolívar"},{"n":"ANITA","id":"2417","d":"CDES3X","b":"CBBA5X","c":"Maturin"},{"n":"ANTINEA","id":"2136","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"ARABELLA","id":"2412","d":"CDES4A","b":"BBCO6A","c":"Barcelona"},{"n":"ARAGUANEY","id":"2276","d":"CDES3A","b":"CBBA5A","c":"Maracay"},{"n":"ARAURE","id":"2690","d":"CDES4A","b":"CBBA5A","c":"Araure"},{"n":"ARCO","id":"2100","d":"CDES3A","b":"CBBA5A","c":"Caracas"},{"n":"ARELIS","id":"2593","d":"CDES3A","b":"BBCO6A","c":"San Cristóbal"},{"n":"ARENALES","id":"2680","d":"CDES3A","b":"BBCO6A","c":"Coro"},{"n":"AUTANA","id":"2124","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"BAMBU","id":"2209","d":"CDES4A","b":"CBBA5A","c":"Valencia"},{"n":"BARROCA","id":"2130","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"BELLA VISTA","id":"2153","d":"CDES3A","b":"CBBA5A","c":"Caracas"},{"n":"BOSQUE","id":"2308","d":"CDES4A","b":"CBBA6A","c":"Barquisimeto"},{"n":"BOULEVAR DE CATIA","id":"2105","d":"CDES4A","b":"BBCO5A","c":"Caracas"},{"n":"CAFETAL","id":"2273","d":"CDES4A","b":"BBCO6A","c":"Naguanagua"},{"n":"CAMINITO","id":"2190","d":"CDES4A","b":"BBCO5A","c":"Guarenas"},{"n":"CARICUAO","id":"2104","d":"CDES3A"},{"n":"CARIRUBANA","id":"2681","d":"CDES4A","b":"CBBA6A","c":"Comunidad Cardón"},{"n":"CARLOTA","id":"2156","d":"CDES3A","b":"BBCO6A","c":"Caracas"},{"n":"CECILIO ACOSTA","id":"2669","d":"CDES4X","b":"CBBC4X","c":"Maracaibo"},{"n":"CEDRO","id":"2270","d":"CDES3A","b":"BBCO4A","c":"Maracay"},{"n":"CEREZOS","id":"2427","d":"CDES4A","b":"CBBA5A","c":"Puerto la Cuz"},{"n":"CHAPARRAL","id":"2422","d":"CDES4A","b":"BBCO4A","c":"El Tigre"},{"n":"CHUAO","id":"2118","d":"CDES3A","b":"CBBA5A","c":"Caracas"},{"n":"CIELO","id":"2289","d":"CDES4A","b":"CBBA5A","c":"Valencia"},{"n":"CIENCIA","id":"2302","d":"CDES4A","b":"BBCO4A","c":"Barquisimeto"},{"n":"CIRCUNVALACION 1","id":"2672","d":"CDES4X","b":"CBBA5A","c":"Maracaibo"},{"n":"CLAVELINAS","id":"2138","d":"CDES4A","b":"BBCO4A","c":"Caracas"},{"n":"CONGRESO","id":"2139","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"CORAL","id":"2426","d":"CDES4X","b":"BBCO4A","c":"Anaco"},{"n":"CORINA","id":"2116","d":"CDED3A","b":"BBCO4A","c":"Caracas"},{"n":"COSTA SUR","id":"2666","d":"CDES4A","b":"BBCO6A","c":"Maracaibo"},{"n":"COSTALAGO","id":"2675","d":"CDES4A","b":"BBCO6A","c":"Cabimas"},{"n":"CRISTAL","id":"2269","d":"CDES4A","b":"BBCO6A","c":"Maracay"},{"n":"CUARTEL","id":"2134","d":"CDES4A"},{"n":"CUARZO","id":"2193","d":"CDES3A","b":"BBCO6A","c":"Caracas"},{"n":"CUMBRES","id":"2671","d":"CDES4X","b":"BBCO5A","c":"Maracaibo"},{"n":"DANIELA","id":"2282","d":"CDES3A","b":"BBCO5A","c":"Valencia"},{"n":"DANILA","id":"2167","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"DAVID","id":"2416","d":"CDES4A","b":"CBBA6A","c":"Lecherías"},{"n":"DAYSI","id":"2320","d":"CDES3A","b":"BBCO6A","c":"Maracay"},{"n":"DELTA","id":"2296","d":"CDES3A","b":"BBCO5A","c":"La Victoria"},{"n":"DIAMANTE","id":"2287","d":"CDES4A","b":"CBBA6A","c":"Valencia"},{"n":"EL AVILA","id":"2101","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"ELEANOR","id":"2165","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"ELIZABETH","id":"2704","d":"CDES4A","b":"BBCO6A","c":"Upata"},{"n":"ELSIS","id":"2322","d":"CDES3A","b":"BBCO6A","c":"Barquisimeto"},{"n":"ENSO","id":"2321","d":"CDES4X","b":"CBBA5A","c":"Cabudare"},{"n":"ESCALANTE","id":"2606","d":"CDES3A","b":"BBCO6A","c":"Santa Bárbara"},{"n":"ESMERALDA","id":"2211","d":"CDES3A","b":"BBCO5A","c":"Cúa"},{"n":"ESQUINA","id":"2660","d":"CDES4A","b":"CBBA6A","c":"Maracaibo"},{"n":"ESTACION SUR CHARALLAVE","id":"2212","d":"CDES4X","b":"CBBC4X","c":"Charallave"},{"n":"ESTRELLA MARINA","id":"2297","d":"CDES3A","b":"BBCO6A","c":"Puerto Cabello"},{"n":"EXPRESO","id":"2160","d":"CDES3A","b":"CBBA4A","c":"Caracas"},{"n":"FLORESTA","id":"2303","d":"CDES4A","b":"BBCO6A","c":"Cabudare"},{"n":"FRANCISCO","id":"2604","d":"CDES4A","b":"BBCO6A","c":"Maracaibo"},{"n":"FUERZAS ARMADAS","id":"2661","d":"CDES4A","b":"CBBA6A","c":"Maracaibo"},{"n":"GABRIEL","id":"2318","d":"CDES4A","b":"CBBA6A","c":"Mérida"},{"n":"GERMAN","id":"2275","d":"CDES4A","b":"BBCO6A","c":"Valencia"},{"n":"GINEBRA","id":"2286","d":"CDES4A","b":"BBCO6A","c":"Valencia"},{"n":"GISELA","id":"2510","d":"CDES3A","b":"BBCO6A","c":"Guanare"},{"n":"GRACIELA","id":"2155","d":"CDES3A","b":"CBBA5A","c":"Caracas"},{"n":"GRANATE","id":"2199","d":"CDES4A","b":"CBBA6A","c":"Guarenas"},{"n":"GREGORIO","id":"2277","d":"CDES4A","b":"BBCO6A","c":"Maracay"},{"n":"GRISELDA","id":"2195","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"GUATAPARO","id":"2288","d":"CDES3A","b":"CBBA6A","c":"Valencia"},{"n":"HERNAN DE JESUS","id":"2603","d":"CDES3A","b":"BBCO6A","c":"El Vigia"},{"n":"INDIGO","id":"2141","d":"CDED3A","b":"BBCO4A","c":"Caracas"},{"n":"INDIO MARA","id":"2665","d":"CDES3A","b":"BBCO6A","c":"Maracaibo"},{"n":"IRENE","id":"2107","d":"CDES4A","b":"BBCO4A","c":"Caracas"},{"n":"ISABELLA","id":"2278","d":"CDES3A","b":"BBCO6A","c":"Valencia"},{"n":"JADE","id":"2703","d":"CDES4A","b":"CBBA6A","c":"Ciudad Bolívar"},{"n":"JARDINES DEL VALLE","id":"2168","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"JENNIFER","id":"2180","d":"CDES4A","b":"BBCO6A","c":"Higuerote"},{"n":"JIRAHARA","id":"2314","d":"CDES4A","b":"BBCO5A","c":"Barquisimeto"},{"n":"JOSE MIGUEL","id":"2166","d":"CDES4X","b":"BBCO5A","c":"Caracas"},{"n":"JOYA","id":"2152","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"JUAN BAUTISTA","id":"2164","d":"CDES3A","b":"BBCO6A","c":"Caracas"},{"n":"JUNIN","id":"2500","d":"CDES3A","b":"BBCO5A","c":"San Felipe"},{"n":"KAVAC","id":"2420","d":"CDES3A","b":"BBCO4A","c":"Anaco"},{"n":"LA ASUNCION","id":"2484","d":"CDES4A","b":"BBCO5A","c":"LA ASUNCION"},{"n":"LA CANDELARIA","id":"2102","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"LA CASTELLANA VE","id":"2126","d":"CDES4A","b":"CBBA5A","c":"Caracas"},{"n":"LA ISABELICA","id":"2283","d":"CDES4A","b":"BBCO5A","c":"Valencia"},{"n":"LA MORAN","id":"2310","d":"CDES4A","b":"CBBA5A","c":"Barquisimeto"},{"n":"LA PASCUA","id":"2507","d":"CDES4A","b":"CBBA5A","c":"Valle de la Pascua"},{"n":"LA PLATA","id":"2608","d":"CDES3A","b":"BBCO6A","c":"Valera"},{"n":"LA VELA","id":"2482","d":"CDES4A","b":"BBCO5A","c":"PORLAMAR"},{"n":"LA VEREDA","id":"2667","d":"CDES4A","b":"CBBA5A","c":"Maracaibo"},{"n":"LAGOMAR","id":"2663","d":"CDES3A","b":"BBCO5A","c":"Maracaibo"},{"n":"LAS DELICIAS","id":"2668","d":"CDES3A","b":"BBCO6A","c":"Maracaibo"},{"n":"LAS SALINAS","id":"2683","d":"CDES4A","b":"BBCO6A","c":"Paraguaná"},{"n":"LIDER","id":"2191","d":"CDES4X","b":"BBCO6A","c":"Caracas"},{"n":"LILIANA","id":"2411","d":"CDES3A","b":"BBCO4A","c":"Puerto la Cuz"},{"n":"LOS ARBOLITOS","id":"2599","d":"CDES4X","b":"CBBA5X","c":"San Cristóbal"},{"n":"LUIS","id":"2511","d":"CDES3A","b":"CBBA6A","c":"San Fernando de Apure"},{"n":"LUZMAR","id":"2142","d":"CDED3A","b":"BBCO4A","c":"Caracas"},{"n":"MADRE CABRINI","id":"2108","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"MAIQUETIA","id":"2208","d":"CDES3X","b":"BBCO4A","c":"La Guaira"},{"n":"MALVINA","id":"2506","d":"CDES3A","b":"BBCO6A","c":"Barinas"},{"n":"MANANTIAL","id":"2121","d":"CDES3A","b":"CBBA4A","c":"Caracas"},{"n":"MANGLAR","id":"2682","d":"CDES4A","b":"BBCO6A","c":"Tucacas"},{"n":"MARFIL","id":"2147","d":"CDES4A","b":"CBBA5A","c":"Caracas"},{"n":"MARIA ANTONIETA","id":"2205","d":"CDES3A","b":"BBCO3A","c":"Caraballeda"},{"n":"MARIANA","id":"2415","d":"CDES3A","b":"BBCO4A","c":"Maturin"},{"n":"MARIAS","id":"2401","d":"CDES4A","b":"BBCO6A","c":"Barcelona"},{"n":"MARINERA","id":"2204","d":"CDES3A","b":"BBCO4A","c":"Catia la Mar"},{"n":"MARTA","id":"2595","d":"CDES4A","b":"BBCO6A","c":"San Cristóbal"},{"n":"MARYCARMEN","id":"2323","d":"CDES4A","b":"BBCO6A","c":"Barquisimeto"},{"n":"MATERNIDAD","id":"2158","d":"CDES4A","b":"BBCO4A","c":"Caracas"},{"n":"MELANIE","id":"2119","d":"CDES4A","b":"CBBA6A","c":"Caracas"},{"n":"MERCEDES","id":"2591","d":"CDES3A","b":"BBCO6A","c":"San Felipe"},{"n":"METROCENTER","id":"2149","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"MEYBY","id":"2521","d":"CDES3A","b":"BBCO6A","c":"Tinaquillo"},{"n":"MIGUEL","id":"2504","d":"CDES3A","b":"CBBA6A","c":"San Juan de los Morros"},{"n":"MILAGROS","id":"2481","d":"CDES4A","b":"CBBA4A","c":"Porlamar"},{"n":"MIRAMONTES","id":"2440","d":"CDES4A","b":"BBCO6A","c":"Carupano"},{"n":"MIRENA","id":"2115","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"MONICA","id":"2181","d":"CDES4A","b":"CBBA4A","c":"Caracas"},{"n":"MONJES","id":"2117","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"MONTAÑAL","id":"2150","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"MUCURA","id":"2154","d":"CDES4A","b":"CBBA6A","c":"Caracas"},{"n":"NACAR","id":"2148","d":"CDES4A","b":"CBBA6A","c":"Caracas"},{"n":"NATALIA","id":"2194","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"NELLYS","id":"2187","d":"CDES4A","b":"CBBA6A","c":"Guatire"},{"n":"NERIDA","id":"2605","d":"CDES4A","b":"BBCO6A","c":"Maracaibo"},{"n":"NUEVA CARACAS","id":"2109","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"OBELISCO","id":"2307","d":"CDES4X","b":"CBBA5X","c":"Barquisimeto"},{"n":"OCUMITO","id":"2196","d":"CDES3A","b":"CBBA4A","c":"Caracas"},{"n":"ODISEA","id":"2410","d":"CDES4A","b":"BBCO4A","c":"Puerto la Cuz"},{"n":"OFELIA","id":"2210","d":"CDED3A","b":"BBCO4A","c":"Charallave"},{"n":"OLIVO","id":"2129","d":"CDES3A"},{"n":"OMEGA","id":"2551","d":"CDES4A","b":"BBCO6A","c":"Barinas"},{"n":"ONIX","id":"2309","d":"CDES3A","b":"BBCO6A","c":"Barquisimeto"},{"n":"OPALO","id":"2189","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"ORINOCO","id":"2428","d":"CDES3X","b":"CBBA5X","c":"Maturin"},{"n":"ORO","id":"2697","d":"CDES4A","b":"CBBA6A","c":"Puerto Ordaz"},{"n":"ORO NEGRO","id":"2670","d":"CDES4A","b":"BBCO6A","c":"Ciudad Ojeda"},{"n":"PALMA REAL","id":"2424","d":"CDES4A","b":"CBBA6A","c":"Maturin"},{"n":"PAMPATAR","id":"2483","d":"CDES4A","b":"CBBA5A","c":"Pampatar"},{"n":"PARQUE","id":"2313","d":"CDES3A","b":"BBCO5A","c":"Barquisimeto"},{"n":"PASEO CARONI","id":"2701","d":"CDES4A","b":"CBBA6A","c":"Puerto Ordaz"},{"n":"PATRIA","id":"2501","d":"CDES3A","b":"BBCO5A","c":"San Felipe"},{"n":"PEDREGAL","id":"2419","d":"CDES4A","b":"BBCO6A","c":"Maturin"},{"n":"PEDRO LUIS","id":"2182","d":"CDES4A","b":"CBBA5A","c":"Caracas"},{"n":"PERLA","id":"2279","d":"CDES4A","b":"BBCO6A","c":"Valencia"},{"n":"PETARE","id":"2127","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"PIEDRA LUNA","id":"2702","d":"CDES4A","b":"CBBA6A","c":"Puerto Ordaz"},{"n":"PIRINEOS","id":"2132","d":"CDES4A","b":"BBCO4A","c":"Caracas"},{"n":"PLAYA GRANDE","id":"2207","d":"CDES3A","b":"CBBA6A","c":"Catia la Mar"},{"n":"PLAYA LIDO","id":"2414","d":"CDES4A","b":"CBBA6A","c":"Lecherías"},{"n":"PLAZA CARICUAO","id":"2159","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"PORVENIR","id":"2421","d":"CDES3A","b":"BBCO4A","c":"Punta de Mata"},{"n":"PUNCERES","id":"2110","d":"CDES4X","b":"BBCO4A","c":"Caracas"},{"n":"RAFAEL TEODORO","id":"2161","d":"CDES4A","b":"CBBA6A","c":"Catia la Mar"},{"n":"REGULO","id":"2206","d":"CDES4X","b":"BBCO5A","c":"Caraballeda"},{"n":"RESTINGA","id":"2480","d":"CDES4A","b":"CBBA6A","c":"Porlamar"},{"n":"RIOFARO","id":"2135","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"ROBLE","id":"2137","d":"CDES3A","b":"BBCO6A","c":"Caracas"},{"n":"ROMANA","id":"2120","d":"CDES4A","b":"BBCO4A","c":"Caracas"},{"n":"ROSARIO","id":"2418","d":"CDES4A","b":"BBCO6A","c":"Maturin"},{"n":"ROXANA","id":"2330","d":"CDES3A","b":"BBCO6A","c":"Ejido"},{"n":"RUBI","id":"2145","d":"CDED3A","b":"BBCO5A","c":"Caracas"},{"n":"SALAS","id":"2319","d":"CDES4A","b":"BBCO4A","c":"Mérida"},{"n":"SAMAN","id":"2503","d":"CDES4A","b":"BBCO6A","c":"San Felipe"},{"n":"SAN PASTOR","id":"2192","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"SCARLET","id":"2171","d":"CDES4A","b":"BBCO6A","c":"Los Teques"},{"n":"SERRANIA","id":"2400","d":"CDES4A","b":"BBCO6A","c":"Barcelona"},{"n":"SERVANDO","id":"2520","d":"CDES4A","b":"BBCO6A","c":"San Carlos"},{"n":"SETENTA","id":"2111","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"SIETE COLINAS","id":"2601","d":"CDES4X","b":"CBBA6X","c":"Valera"},{"n":"SORAYA","id":"2594","d":"CDES3A","b":"BBCO4A","c":"San Cristóbal"},{"n":"SUSANA","id":"2114","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"TEO","id":"2125","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"TEPUY","id":"2146","d":"CDES4A","b":"CBBA6A","c":"Caracas"},{"n":"TEREPAIMA","id":"2112","d":"CDES4X","b":"CBBC4X","c":"Caracas"},{"n":"TOBOGAN","id":"2113","d":"CDES3A","b":"BBCO4A","c":"Caracas"},{"n":"TOPACIO","id":"2143","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"TORRE EUROPA","id":"2662","d":"CDES4A","b":"CBBA6A","c":"Maracaibo"},{"n":"TRINCHERAS","id":"2284","d":"CDES4A","b":"BBCO4A","c":"Valencia"},{"n":"TRUJILLO","id":"2600","d":"CDES3A","b":"BBCO3A","c":"Valera"},{"n":"TUNANTAL","id":"2425","d":"CDES4A","b":"BBCO6A","c":"Cumaná"},{"n":"TURQUESA","id":"2198","d":"CDES3A","b":"BBCO4A","c":"Guatire"},{"n":"UMBRAL","id":"2271","d":"CDES4A","b":"CBBA6A","c":"Maracay"},{"n":"UNDA","id":"2694","d":"CDES3A","b":"BBCO4A","c":"Guanare"},{"n":"VENECIA","id":"2131","d":"CDES3A"},{"n":"VENTUARI","id":"2188","d":"CDES4A","b":"BBCO4A","c":"Caracas"},{"n":"VERTIENTE","id":"2197","d":"CDES3A","b":"BBCO5A","c":"Guarenas"},{"n":"VILLA GRANADA","id":"2700","d":"CDES4A","b":"CBBA6A","c":"Puerto Ordaz"},{"n":"YADIRA","id":"2298","d":"CDES4A","b":"CBBA6A","c":"Guacara"},{"n":"ZAFIRO","id":"2144","d":"CDES3A","b":"CBBA5A","c":"Caracas"},{"n":"ZONA FRANCA","id":"2133","d":"CDES3A","b":"BBCO5A","c":"Caracas"},{"n":"ZONA INDUSTRIAL","id":"2413","d":"CDES4A","b":"CBBA5A","c":"Maturin"},{"n":"ZUBILLAGA HERMANOS","id":"2304","d":"CDES4A","b":"CBBA5A","c":"Carora"},{"n":"ZULY","id":"2267","d":"CDES4A","b":"CBBA6A","c":"Maracay"}],"pl":{"BBCO3A":{"code":"BBCO3A","name":"BEBE COSMETICOS (3A) 1,2 M","cat":"Bebé Cosméticos","date":"17/9/2026","width":"1 m 20,00 cm","width_cm":120,"modulos":3,"tipo":"A","aplus":false,"skus":95,"notes":[],"img":{"foto":"BBCO3A_foto.jpg","sku":"BBCO3A_sku.jpg"}},"BBCO4A":{"code":"BBCO4A","name":"BEBE COSMETICOS (4A) 2,4 M","cat":"Bebé Cosméticos","date":"17/9/2026","width":"2 m 40,00 cm","width_cm":240,"modulos":4,"tipo":"A","aplus":false,"skus":160,"notes":["Exhibir las ristras una en contra de otra; en caso de duda revisar guía de exhibición en drive."],"img":{"foto":"BBCO4A_foto.jpg","sku":"BBCO4A_sku.jpg"}},"CBBC4X":{"code":"CBBC4X","name":"BEBE COSMETICOS (4X) 2,4 M","cat":"Bebé Cosméticos","date":"17/9/2026","width":"2 m 40,00 cm","width_cm":240,"modulos":4,"tipo":"X","aplus":false,"skus":153,"notes":["Exhibir las ristras una en contra de otra; en caso de duda revisar guía de exhibición en drive."],"img":{"foto":"CBBC4X_foto.jpg","sku":"CBBC4X_sku.jpg"}},"BBCO5A":{"code":"BBCO5A","name":"BEBE COSMETICOS (5A) 3,6 M","cat":"Bebé Cosméticos","date":"17/9/2026","width":"3 m 60,00 cm","width_cm":360,"modulos":5,"tipo":"A","aplus":false,"skus":209,"notes":[],"img":{"foto":"BBCO5A_foto.jpg","sku":"BBCO5A_sku.jpg"}},"BBCO6A":{"code":"BBCO6A","name":"BEBE COSMETICOS (6A) 4,8 M","cat":"Bebé Cosméticos","date":"17/9/2026","width":"4 m 80,00 cm","width_cm":480,"modulos":6,"tipo":"A","aplus":false,"skus":228,"notes":[],"img":{"foto":"BBCO6A_foto.jpg","sku":"BBCO6A_sku.jpg"}},"CBBA5A":{"code":"CBBA5A","name":"BEBE COSMETICOS A + (5A) 3,60M","cat":"Bebé Cosméticos","date":"17/9/2026","width":"3 m 60,00 cm","width_cm":360,"modulos":5,"tipo":"A","aplus":true,"skus":221,"notes":[],"img":{"foto":"CBBA5A_foto.jpg","sku":"CBBA5A_sku.jpg"}},"CBBA5X":{"code":"CBBA5X","name":"BEBE COSMETICOS A + (5X) 3,60M","cat":"Bebé Cosméticos","date":"17/9/2026","width":"3 m 60,00 cm","width_cm":360,"modulos":5,"tipo":"X","aplus":true,"skus":219,"notes":[],"img":{"foto":"CBBA5X_foto.jpg","sku":"CBBA5X_sku.jpg"}},"CBBA4A":{"code":"CBBA4A","name":"BEBE COSMETICOS A+ (4A) 2,40M","cat":"Bebé Cosméticos","date":"17/9/2026","width":"2 m 40,00 cm","width_cm":240,"modulos":4,"tipo":"A","aplus":true,"skus":170,"notes":["Exhibir las ristras una en contra de otra; en caso de duda revisar guía de exhibición en drive."],"img":{"foto":"CBBA4A_foto.jpg","sku":"CBBA4A_sku.jpg"}},"CBBA6A":{"code":"CBBA6A","name":"BEBE COSMETICOS A+ (6A) 4,80M","cat":"Bebé Cosméticos","date":"17/9/2026","width":"4 m 80,00 cm","width_cm":480,"modulos":6,"tipo":"A","aplus":true,"skus":243,"notes":[],"img":{"foto":"CBBA6A_foto.jpg","sku":"CBBA6A_sku.jpg"}},"CBBA6X":{"code":"CBBA6X","name":"BEBE COSMETICOS A+ (6X) 4,80M","cat":"Bebé Cosméticos","date":"17/9/2026","width":"4 m 80,00 cm","width_cm":480,"modulos":6,"tipo":"X","aplus":true,"skus":238,"notes":[],"img":{"foto":"CBBA6X_foto.jpg","sku":"CBBA6X_sku.jpg"}},"CDEO3A":{"code":"CDEO3A","name":"DESODORANTES (3A) 1,2 M A+","cat":"Desodorantes","date":"15/9/2026","width":"1 m 20,00 cm","width_cm":120,"modulos":3,"tipo":"A","aplus":true,"skus":104,"notes":["OJO: Validar productos con máximo cero y transferir a otra tienda previa autorización de su GA."],"img":{"foto":"CDEO3A_foto.jpg","sku":"CDEO3A_sku.jpg"}},"CDED3A":{"code":"CDED3A","name":"DESODORANTES (3A) 1,2 M B","cat":"Desodorantes","date":"15/9/2026","width":"1 m 20,00 cm","width_cm":120,"modulos":3,"tipo":"A","aplus":false,"skus":93,"notes":["OJO: Validar productos con máximo cero y transferir a otra tienda previa autorización de su GA."],"img":{"foto":"CDED3A_foto.jpg","sku":"CDED3A_sku.jpg"}},"CDES3A":{"code":"CDES3A","name":"DESODORANTES (3A) 1,2 M","cat":"Desodorantes","date":"15/9/2026","width":"1 m 20,00 cm","width_cm":120,"modulos":3,"tipo":"A","aplus":false,"skus":103,"notes":["OJO: Validar productos con máximo cero y transferir a otra tienda previa autorización de su GA."],"img":{"foto":"CDES3A_foto.jpg","sku":"CDES3A_sku.jpg"}},"CDES3X":{"code":"CDES3X","name":"DESODORANTES (3X) 1,20 M","cat":"Desodorantes","date":"15/9/2026","width":"1 m 20,00 cm","width_cm":120,"modulos":3,"tipo":"X","aplus":false,"skus":98,"notes":["OJO: Validar productos con máximo cero y transferir a otra tienda previa autorización de su GA."],"img":{"foto":"CDES3X_foto.jpg","sku":"CDES3X_sku.jpg"}},"CDES4A":{"code":"CDES4A","name":"DESODORANTES (4A) 2,4M","cat":"Desodorantes","date":"15/9/2026","width":"2 m 40,00 cm","width_cm":240,"modulos":4,"tipo":"A","aplus":false,"skus":121,"notes":[],"img":{"foto":"CDES4A_foto.jpg","sku":"CDES4A_sku.jpg"}},"CDES4X":{"code":"CDES4X","name":"DESODORANTES (4X) 2,40M","cat":"Desodorantes","date":"15/9/2026","width":"2 m 40,00 cm","width_cm":240,"modulos":4,"tipo":"X","aplus":false,"skus":122,"notes":[],"img":{"foto":"CDES4X_foto.jpg","sku":"CDES4X_sku.jpg"}}}};
+const PL = DATA.pl, STORES = DATA.stores;
+const $ = s => document.querySelector(s);
+const fmtM = cm => (cm/100).toFixed(2).replace('.',',') + ' m';
+const slug = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+const short = code => { const p = PL[code]; return p ? (p.width_cm/100).toFixed(1).replace('.',',') : ''; };
+const typeLabel = p => (p.aplus ? 'A+ · ' : '') + p.modulos + ' módulos' + (p.tipo==='X' ? ' (X)' : '') + (/ B$/.test(p.name) ? ' · B' : '');
+let view = 'foto', sel = null, pgFilter = null;
+try { view = localStorage.getItem('pg-view') || 'foto'; } catch(e) {}
+
+// totales
+(function(){
+  const nb = STORES.filter(s=>s.b).length, nd = STORES.filter(s=>s.d).length;
+  const totalCm = STORES.reduce((a,s)=>a+(s.b?PL[s.b].width_cm:0)+(s.d?PL[s.d].width_cm:0),0);
+  $('#totals').innerHTML = `
+    <div><b>${STORES.length}</b><span>Tiendas</span></div>
+    <div><b>${Object.keys(PL).length}</b><span>Planogramas</span></div>
+    <div><b>${(totalCm/100).toLocaleString('es-VE',{maximumFractionDigits:1})} m</b><span>Lineales totales</span></div>`;
+  const cities = [...new Set(STORES.map(s=>s.c).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  $('#city').insertAdjacentHTML('beforeend', cities.map(c=>`<option>${c}</option>`).join(''));
+})();
+
+function filtered(){
+  const q = slug($('#q').value.trim()), c = $('#city').value;
+  return STORES.filter(s => (!q || slug(s.n).includes(q) || (s.id||'').includes(q)) && (!c || s.c===c) && (!pgFilter || s.b===pgFilter || s.d===pgFilter));
+}
+function renderList(){
+  const rows = filtered();
+  $('#count').textContent = rows.length + (rows.length===1?' tienda':' tiendas');
+  const pf = $('#pgfilter');
+  if (pgFilter){ pf.hidden = false; pf.textContent = PL[pgFilter].name + '  ✕'; pf.title='Quitar filtro'; } else pf.hidden = true;
+  $('#list').innerHTML = rows.map(s => `<li><button type="button" data-n="${s.n}" aria-current="${sel&&sel.n===s.n}">
+    <span class="sn">${s.n}</span>
+    <span class="sm">${s.b?`<span class="pill b" title="Bebé Cosméticos">BB ${short(s.b)}</span>`:`<span class="pill x">BB —</span>`}${s.d?`<span class="pill d" title="Desodorantes">DE ${short(s.d)}</span>`:`<span class="pill x">DE —</span>`}</span>
+    <span class="sc">${s.id?'#'+s.id:''}${s.id&&s.c?' · ':''}${s.c||''}</span></button></li>`).join('') || '<li class="empty">Ninguna tienda coincide con la búsqueda.</li>';
+}
+
+function pgCard(code, kind){
+  const label = kind==='b' ? 'Bebé Cosméticos' : 'Desodorantes';
+  if (!code) return `<section class="pg ${kind}"><div class="pg-head"><div><div class="cat">${label}</div><h3>Sin planograma asignado</h3></div></div><p class="empty">Esta tienda no aparece en la lista de asignación de ${label}.</p></section>`;
+  const p = PL[code];
+  return `<section class="pg ${kind}">
+    <div class="pg-head">
+      <div><div class="cat">${label}</div><h3>${p.name}</h3></div>
+      <dl class="facts" style="margin:0">
+        <div><dt>Medida</dt><dd class="big">${fmtM(p.width_cm)}</dd></div>
+        <div><dt>Tipo</dt><dd>${typeLabel(p)}</dd></div>
+        <div><dt>Código</dt><dd><code>${p.code}</code></dd></div>
+        <div><dt>SKU</dt><dd>${p.skus}</dd></div>
+        <div><dt>Actualizado</dt><dd>${p.date}</dd></div>
+      </dl>
+    </div>
+    ${p.notes.map(n=>`<div class="note">${n}</div>`).join('')}
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="Vista">
+        <button type="button" data-view="foto" aria-pressed="${view==='foto'}">Productos</button>
+        <button type="button" data-view="sku" aria-pressed="${view==='sku'}">Códigos SKU</button>
+      </div>
+      <button class="btn" type="button" data-open="${code}">Ampliar ⤢</button>
+    </div>
+    <div class="imgbox"><button type="button" data-open="${code}" aria-label="Ampliar ${p.name}"><img loading="lazy" src="${p.img[view]}" alt="Planograma ${p.name} (${view==='foto'?'productos':'códigos SKU'})"></button></div>
+  </section>`;
+}
+
+function summary(){
+  const cnt = {}; STORES.forEach(s=>{ if(s.b) cnt[s.b]=(cnt[s.b]||0)+1; if(s.d) cnt[s.d]=(cnt[s.d]||0)+1; });
+  const tbl = (cat, kind) => {
+    const codes = Object.keys(PL).filter(k=>PL[k].cat===cat).sort((a,b)=>PL[a].width_cm-PL[b].width_cm || (cnt[b]||0)-(cnt[a]||0));
+    const max = Math.max(...codes.map(k=>cnt[k]||0));
+    return `<div><h3 style="color:var(--${kind==='b'?'bebe':'deso'})">${cat}</h3><div class="tbl"><table>
+      <thead><tr><th>Planograma</th><th class="n">Medida</th><th>Tiendas</th></tr></thead><tbody>
+      ${codes.map(k=>`<tr class="click" tabindex="0" data-pg="${k}"><td>${PL[k].name}<br><code>${k}</code></td><td class="n">${fmtM(PL[k].width_cm)}</td>
+        <td style="white-space:nowrap"><span class="minibar" style="width:${Math.max(4,(cnt[k]||0)/max*90)}px;background:var(--${kind==='b'?'bebe':'deso'})"></span>${cnt[k]||0}</td></tr>`).join('')}
+      </tbody></table></div></div>`;
+  };
+  return `<section class="summary"><h3 style="margin-bottom:4px">Resumen de asignación</h3><p>Toca un planograma para ver solo las tiendas que lo tienen.</p>
+    <div class="sumgrid">${tbl('Bebé Cosméticos','b')}${tbl('Desodorantes','d')}</div></section>`;
+}
+
+function renderMain(){
+  const m = $('#main');
+  if (!sel){ m.innerHTML = summary(); return; }
+  const s = sel, b = s.b?PL[s.b].width_cm:0, d = s.d?PL[s.d].width_cm:0, t = b+d;
+  m.innerHTML = `<section class="store-head">
+      <div style="min-width:0;flex:1 1 260px">
+        <h2>${s.n}</h2>
+        <div class="meta">${s.id?`Tienda <code>#${s.id}</code>`:'Sin número'}${s.c?' · '+s.c:''}</div>
+        <div class="bar" aria-hidden="true"><i class="b" style="width:${t?b/t*100:0}%"></i><i class="d" style="width:${t?d/t*100:0}%"></i></div>
+        <div class="barlbl"><span>Bebé ${b?fmtM(b):'—'}</span><span>Desodorantes ${d?fmtM(d):'—'}</span></div>
+      </div>
+      <div class="linear">
+        <div class="lin b"><small>Bebé Cosm.</small><strong>${b?fmtM(b):'—'}</strong></div>
+        <div class="lin d"><small>Desodorantes</small><strong>${d?fmtM(d):'—'}</strong></div>
+        <div class="lin t"><small>Total lineal</small><strong>${fmtM(t)}</strong></div>
+      </div>
+    </section>
+    ${pgCard(s.b,'b')}
+    ${pgCard(s.d,'d')}
+    <div><button class="btn" type="button" id="back">← Ver resumen de todas las tiendas</button></div>`;
+}
+
+function select(n, push=true){
+  sel = STORES.find(s=>s.n===n) || null;
+  renderList(); renderMain();
+  if (push) { const h = sel ? '#'+slug(sel.n) : ''; if (location.hash !== h) history.replaceState(null,'',h || location.pathname); }
+  if (sel && window.innerWidth<=860) $('#main').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+$('#q').addEventListener('input', renderList);
+$('#city').addEventListener('change', renderList);
+$('#q').addEventListener('keydown', e => { if (e.key==='Enter'){ const r=filtered(); if(r.length) select(r[0].n); }});
+$('#pgfilter').addEventListener('click', ()=>{ pgFilter=null; renderList(); });
+$('#list').addEventListener('click', e => { const b=e.target.closest('button[data-n]'); if(b) select(b.dataset.n); });
+$('#main').addEventListener('click', e => {
+  const v = e.target.closest('[data-view]'); if (v){ view=v.dataset.view; try{localStorage.setItem('pg-view',view);}catch(_){} renderMain(); return; }
+  const o = e.target.closest('[data-open]'); if (o){ openViewer(o.dataset.open); return; }
+  const r = e.target.closest('tr[data-pg]'); if (r){ pgFilter=r.dataset.pg; renderList(); $('#list').scrollTop=0; return; }
+  if (e.target.closest('#back')) select(null);
+});
+$('#main').addEventListener('keydown', e => { const r=e.target.closest('tr[data-pg]'); if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault(); r.click();} });
+
+// visor
+let lastFocus=null;
+function openViewer(code){
+  const p=PL[code]; lastFocus=document.activeElement;
+  $('#vtitle').textContent = p.name + ' · ' + fmtM(p.width_cm);
+  $('#vimg').src = p.img[view]; $('#vimg').alt = 'Planograma '+p.name;
+  $('#vscroll').classList.remove('real'); $('#vzoom').textContent='Tamaño real';
+  $('#viewer').hidden=false; $('#vclose').focus();
+}
+function closeViewer(){ $('#viewer').hidden=true; if(lastFocus) lastFocus.focus(); }
+function toggleZoom(){ const r=$('#vscroll').classList.toggle('real'); $('#vzoom').textContent = r?'Ajustar a pantalla':'Tamaño real'; }
+$('#vclose').addEventListener('click', closeViewer);
+$('#vzoom').addEventListener('click', toggleZoom);
+$('#vimg').addEventListener('click', toggleZoom);
+document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('#viewer').hidden) closeViewer(); });
+
+function fromHash(){ const h=location.hash.slice(1); const s=STORES.find(x=>slug(x.n)===h); select(s?s.n:null,false); }
+window.addEventListener('hashchange', fromHash);
+fromHash();
+</script>
+
+</body>
+</html>
