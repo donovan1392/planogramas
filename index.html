@@ -163,6 +163,20 @@ td code{font-family:var(--f-mono);font-size:.82rem}
 .vscroll.real{display:block}
 .vscroll.real img{max-width:none;max-height:none;width:auto;cursor:zoom-out}
 footer{margin-top:22px;color:var(--muted);font-size:.8rem}
+.tabs{display:flex;gap:2px;margin:0 0 16px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{font:inherit;font-family:var(--f-display);font-size:1.2rem;font-weight:600;letter-spacing:.01em;padding:8px 18px 9px;border:0;background:none;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:.82rem;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:99px;padding:4px 11px;cursor:pointer;font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grp{list-style:none;padding:12px 10px 4px;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.stbl td:first-child{font-weight:600}
+.tscroll{max-height:380px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.tscroll thead th{position:sticky;top:0;background:var(--panel);z-index:1}
+.plan-head h2{font-size:1.9rem}
 @media (prefers-reduced-motion:no-preference){ul.stores button,.btn,tr.click td{transition:background .12s,border-color .12s,color .12s}}
 </style>
 
@@ -179,11 +193,17 @@ footer{margin-top:22px;color:var(--muted);font-size:.8rem}
 
   <nav class="linebar" id="linebar" aria-label="Línea de producto Ponce"></nav>
 
+  <div class="tabs" role="tablist" aria-label="Vista">
+    <button type="button" class="tab" role="tab" data-mode="tienda" aria-selected="true">Por tienda</button>
+    <button type="button" class="tab" role="tab" data-mode="plan" aria-selected="false">Por planograma</button>
+  </div>
+
   <div class="grid">
-    <aside aria-label="Tiendas">
+    <aside aria-label="Lista">
       <div class="search">
         <input id="q" type="search" placeholder="Buscar tienda o número (ej. LUZMAR, 2142)" autocomplete="off" aria-label="Buscar tienda">
-        <div class="row">
+        <div class="chips" id="sizes" hidden></div>
+        <div class="row" id="cityrow">
           <select id="city" aria-label="Filtrar por ciudad"><option value="">Todas las ciudades</option></select>
         </div>
         <div class="row" style="align-items:center;justify-content:space-between">
@@ -233,6 +253,10 @@ const slug = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replac
 const short = code => { const p = PL[code]; return p ? (p.width_cm/100).toFixed(1).replace('.',',') : ''; };
 const typeLabel = p => (p.aplus ? 'A+ · ' : '') + p.modulos + ' módulos' + (p.tipo==='X' ? ' (X)' : '') + (/ B$/.test(p.name) ? ' · B' : '');
 let view = 'foto', sel = null, pgFilter = null, line = null, hiSku = null, hiOn = true;
+let mode = 'tienda', selPg = null, size = null;
+const STORESOF = {}; STORES.forEach(s=>CATS.forEach(c=>{ if(s[c.k]) (STORESOF[s[c.k]] ||= []).push(s); }));
+const catOfPg = code => CATS.find(c=>c.name===PL[code].cat);
+const SIZES = [...new Set(Object.values(PL).map(p=>p.width_cm))].sort((a,b)=>a-b);
 try { view = localStorage.getItem('pg-view') || 'foto'; const l = localStorage.getItem('pg-line'); if (l && CATOF[l]) line = l; } catch(e) {}
 
 function renderLineBar(){
@@ -276,7 +300,29 @@ function filtered(){
   const q = slug($('#q').value.trim()), c = $('#city').value;
   return STORES.filter(s => (!q || slug(s.n).includes(q) || (s.id||'').includes(q)) && (!c || s.c===c) && (!pgFilter || CATS.some(c=>s[c.k]===pgFilter)) && (!line || [...CATOF[line]].some(k=>s[k])));
 }
+function pgFiltered(){
+  const q = slug($('#q').value.trim()), vis = visCats().map(c=>c.name);
+  return Object.keys(PL).filter(k => vis.includes(PL[k].cat) && (!size || PL[k].width_cm===size) && (!q || slug(PL[k].name).includes(q) || slug(k).includes(q)))
+    .sort((a,b)=>CATS.indexOf(catOfPg(a))-CATS.indexOf(catOfPg(b)) || PL[a].width_cm-PL[b].width_cm || PL[a].name.localeCompare(PL[b].name,'es'));
+}
+function renderPgList(){
+  const codes = pgFiltered();
+  $('#count').textContent = codes.length + (codes.length===1?' planograma':' planogramas');
+  $('#pgfilter').hidden = true;
+  $('#sizes').innerHTML = [null,...SIZES].map(w=>`<button type="button" class="chip" data-size="${w||''}" aria-pressed="${size===w}">${w?fmtM(w):'Todas las medidas'}</button>`).join('');
+  let last = null, html = '';
+  codes.forEach(k=>{
+    const c = catOfPg(k), n = (STORESOF[k]||[]).length;
+    if (c !== last) { html += `<li class="grp" style="color:var(--${c.color})">${c.name}</li>`; last = c; }
+    html += `<li><button type="button" data-pgsel="${k}" aria-current="${selPg===k}">
+      <span class="sn">${PL[k].name}</span>
+      <span class="sm"><span class="pill ${c.k}">${fmtM(PL[k].width_cm)}</span><span class="pill x">${n} ${n===1?'tienda':'tiendas'}</span></span>
+      <span class="sc"><code>${k}</code></span></button></li>`;
+  });
+  $('#list').innerHTML = html || '<li class="empty">Ningún planograma coincide con la búsqueda.</li>';
+}
 function renderList(){
+  if (mode==='plan') return renderPgList();
   const rows = filtered();
   $('#count').textContent = rows.length + (rows.length===1?' tienda':' tiendas');
   const pf = $('#pgfilter');
@@ -329,7 +375,7 @@ function summary(){
         <td style="white-space:nowrap"><span class="minibar" style="width:${Math.max(4,(cnt[k]||0)/max*90)}px;background:var(--${color})"></span>${cnt[k]||0}</td></tr>`).join('')}
       </tbody></table></div></div>`;
   };
-  return `<section class="summary"><h3 style="margin-bottom:4px">Resumen de asignación</h3><p>Toca un planograma para ver solo las tiendas que lo tienen.</p>
+  return `<section class="summary"><h3 style="margin-bottom:4px">Resumen de asignación</h3><p>${mode==='plan'?'Toca un planograma para ver su medida, su imagen y las tiendas que lo tienen.':'Toca un planograma para ver solo las tiendas que lo tienen.'}</p>
     <div class="sumgrid">${visCats().map(c=>tbl(c.name,c.k,c.color)).join('')}</div></section>${stockTable()}`;
 }
 function stockTable(){
@@ -343,8 +389,36 @@ function stockTable(){
     </tbody></table></div></section>`;
 }
 
+function renderPlan(){
+  const m = $('#main');
+  if (!selPg){ m.innerHTML = summary(); return; }
+  const p = PL[selPg], c = catOfPg(selPg), st = (STORESOF[selPg]||[]).slice().sort((a,b)=>(a.c||'').localeCompare(b.c||'','es') || a.n.localeCompare(b.n,'es'));
+  const cities = new Set(st.map(s=>s.c).filter(Boolean)).size;
+  m.innerHTML = `<section class="store-head plan-head">
+      <div style="min-width:0;flex:1 1 260px">
+        <div class="cat" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;font-weight:700;color:var(--${c.color})">${c.name}</div>
+        <h2>${p.name}</h2>
+        <div class="meta">Código <code>${p.code}</code>${p.date?' · actualizado '+p.date:''}</div>
+      </div>
+      <div class="linear">
+        <div class="lin ${c.k}"><small>Medida</small><strong>${fmtM(p.width_cm)}</strong></div>
+        <div class="lin ${c.k}"><small>Módulos</small><strong>${p.modulos}</strong></div>
+        <div class="lin ${c.k}"><small>Tiendas</small><strong>${st.length}</strong></div>
+        <div class="lin t"><small>Lineal total</small><strong>${nf(Math.round(st.length*p.width_cm)/100)} m</strong></div>
+      </div>
+    </section>
+    <section class="summary"><h3 style="margin-bottom:4px">Tiendas con este planograma · ${st.length}</h3>
+      <p>${st.length?`En ${cities} ${cities===1?'ciudad':'ciudades'}. Toca una tienda para ver todos sus planogramas.`:'Ninguna tienda tiene asignado este planograma.'}</p>
+      ${st.length?`<div class="tbl tscroll"><table class="stbl"><thead><tr><th>Tienda</th><th>N°</th><th>Ciudad</th><th class="n">Lineal total tienda</th></tr></thead><tbody>
+      ${st.map(s=>`<tr class="click" tabindex="0" data-store="${s.n}"><td>${s.n}</td><td><code>${s.id||'—'}</code></td><td>${s.c||'—'}</td><td class="n">${fmtM(CATS.reduce((a,c)=>a+wOf(s,c),0))}</td></tr>`).join('')}
+      </tbody></table></div>`:''}
+    </section>
+    ${pgCard(selPg, c.k)}
+    <div><button class="btn" type="button" id="back">← Ver todos los planogramas</button></div>`;
+}
 function renderMain(){
   const m = $('#main');
+  if (mode==='plan') return renderPlan();
   if (!sel){ m.innerHTML = summary(); return; }
   const s = sel, ws = CATS.map(c=>wOf(s,c)), t = ws.reduce((a,x)=>a+x,0);
   m.innerHTML = `<section class="store-head">
@@ -363,34 +437,54 @@ function renderMain(){
     <div><button class="btn" type="button" id="back">← Ver resumen de todas las tiendas</button></div>`;
 }
 
+function setHash(){
+  const h = mode==='plan' ? (selPg ? '#pg-'+selPg.toLowerCase() : '#planogramas') : (sel ? '#'+slug(sel.n) : '');
+  if (location.hash !== h) { try { history.replaceState(null,'',h || location.pathname); } catch(_) {} }
+}
+function renderTabs(){
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected', b.dataset.mode===mode));
+  $('#sizes').hidden = mode!=='plan'; $('#cityrow').hidden = mode==='plan';
+  $('#q').placeholder = mode==='plan' ? 'Buscar planograma o código (ej. 4A, AVIT5E)' : 'Buscar tienda o número (ej. LUZMAR, 2142)';
+  $('#q').setAttribute('aria-label', mode==='plan' ? 'Buscar planograma' : 'Buscar tienda');
+}
+function setMode(m){ if (m===mode) return; mode = m; $('#q').value=''; renderTabs(); renderList(); renderMain(); setHash(); }
+function selectPg(code, push=true){
+  selPg = code && PL[code] ? code : null; hiSku = null;
+  renderList(); renderMain(); if (push) setHash();
+  if (selPg && window.innerWidth<=860) $('#main').scrollIntoView({behavior:'smooth',block:'start'});
+}
 function select(n, push=true){
   sel = STORES.find(s=>s.n===n) || null;
   renderList(); renderMain();
-  if (push) { const h = sel ? '#'+slug(sel.n) : ''; if (location.hash !== h) history.replaceState(null,'',h || location.pathname); }
+  if (push) setHash();
   if (sel && window.innerWidth<=860) $('#main').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 $('#q').addEventListener('input', renderList);
 $('#city').addEventListener('change', renderList);
-$('#q').addEventListener('keydown', e => { if (e.key==='Enter'){ const r=filtered(); if(r.length) select(r[0].n); }});
+$('#q').addEventListener('keydown', e => { if (e.key!=='Enter') return; if (mode==='plan'){ const r=pgFiltered(); if(r.length) selectPg(r[0]); } else { const r=filtered(); if(r.length) select(r[0].n); } });
+document.querySelector('.tabs').addEventListener('click', e => { const b=e.target.closest('[data-mode]'); if(b) setMode(b.dataset.mode); });
+$('#sizes').addEventListener('click', e => { const b=e.target.closest('[data-size]'); if(!b) return; size = b.dataset.size ? +b.dataset.size : null; renderPgList(); });
 $('#pgfilter').addEventListener('click', ()=>{ pgFilter=null; renderList(); });
-$('#list').addEventListener('click', e => { const b=e.target.closest('button[data-n]'); if(b) select(b.dataset.n); });
+$('#list').addEventListener('click', e => { const g=e.target.closest('button[data-pgsel]'); if(g) return selectPg(g.dataset.pgsel); const b=e.target.closest('button[data-n]'); if(b) select(b.dataset.n); });
 $('#main').addEventListener('click', e => {
   const v = e.target.closest('[data-view]'); if (v){ view=v.dataset.view; try{localStorage.setItem('pg-view',view);}catch(_){} renderMain(); return; }
   const k = e.target.closest('[data-sku]'); if (k){ hiSku = hiSku===k.dataset.sku ? null : k.dataset.sku; renderMain(); return; }
   const o = e.target.closest('[data-open]'); if (o){ openViewer(o.dataset.open); return; }
-  const r = e.target.closest('tr[data-pg]'); if (r){ pgFilter=r.dataset.pg; renderList(); $('#list').scrollTop=0; return; }
-  if (e.target.closest('#back')) select(null);
+  const st = e.target.closest('tr[data-store]'); if (st){ mode='tienda'; $('#q').value=''; renderTabs(); select(st.dataset.store); window.scrollTo({top:0,behavior:'smooth'}); return; }
+  const r = e.target.closest('tr[data-pg]'); if (r){ if (mode==='plan') return selectPg(r.dataset.pg); pgFilter=r.dataset.pg; renderList(); $('#list').scrollTop=0; return; }
+  if (e.target.closest('#back')) { if (mode==='plan') selectPg(null); else select(null); }
 });
 $('#linebar').addEventListener('click', e => {
   if (e.target.closest('#hitoggle')) { hiOn = !hiOn; renderLineBar(); renderMain(); return; }
   const b = e.target.closest('[data-line]'); if (!b) return;
   line = b.dataset.line || null; hiSku = null;
   if (pgFilter && line && !visCats().some(c=>c.name===PL[pgFilter].cat)) pgFilter = null;
+  if (selPg && line && !visCats().some(c=>c.name===PL[selPg].cat)) { selPg = null; setHash(); }
   try { localStorage.setItem('pg-line', line||''); } catch(_) {}
   renderLineBar(); renderList(); renderMain();
 });
-$('#main').addEventListener('keydown', e => { const r=e.target.closest('tr[data-pg]'); if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault(); r.click();} });
+$('#main').addEventListener('keydown', e => { const r=e.target.closest('tr[data-pg],tr[data-store]'); if(r&&(e.key==='Enter'||e.key===' ')){e.preventDefault(); r.click();} });
 
 // visor
 let lastFocus=null;
@@ -408,7 +502,11 @@ $('#vzoom').addEventListener('click', toggleZoom);
 $('#vimg').addEventListener('click', toggleZoom);
 document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('#viewer').hidden) closeViewer(); });
 
-function fromHash(){ const h=location.hash.slice(1); const s=STORES.find(x=>slug(x.n)===h); select(s?s.n:null,false); }
+function fromHash(){
+  const h = location.hash.slice(1);
+  if (h==='planogramas' || h.startsWith('pg-')) { mode='plan'; renderTabs(); const code=h.startsWith('pg-')?h.slice(3).toUpperCase():null; selectPg(code, false); return; }
+  mode='tienda'; renderTabs(); const s=STORES.find(x=>slug(x.n)===h); select(s?s.n:null,false);
+}
 window.addEventListener('hashchange', fromHash);
 renderLineBar();
 fromHash();
