@@ -303,7 +303,7 @@ function filtered(){
 function pgFiltered(){
   const q = slug($('#q').value.trim()), vis = visCats().map(c=>c.name);
   return Object.keys(PL).filter(k => vis.includes(PL[k].cat) && (!size || PL[k].width_cm===size) && (!q || slug(PL[k].name).includes(q) || slug(k).includes(q)))
-    .sort((a,b)=>CATS.indexOf(catOfPg(a))-CATS.indexOf(catOfPg(b)) || PL[a].width_cm-PL[b].width_cm || PL[a].name.localeCompare(PL[b].name,'es'));
+    .sort((a,b)=>CATS.indexOf(catOfPg(a))-CATS.indexOf(catOfPg(b)) || (STORESOF[b]||[]).length-(STORESOF[a]||[]).length || PL[a].width_cm-PL[b].width_cm || PL[a].name.localeCompare(PL[b].name,'es'));
 }
 function renderPgList(){
   const codes = pgFiltered();
@@ -367,7 +367,7 @@ function pgCard(code, kind){
 function summary(){
   const cnt = {}; STORES.forEach(s=>CATS.forEach(c=>{ if(s[c.k]) cnt[s[c.k]]=(cnt[s[c.k]]||0)+1; }));
   const tbl = (cat, kind, color) => {
-    const codes = Object.keys(PL).filter(k=>PL[k].cat===cat).sort((a,b)=>PL[a].width_cm-PL[b].width_cm || (cnt[b]||0)-(cnt[a]||0));
+    const codes = Object.keys(PL).filter(k=>PL[k].cat===cat).sort((a,b)=>(cnt[b]||0)-(cnt[a]||0) || PL[a].width_cm-PL[b].width_cm);
     const max = Math.max(...codes.map(k=>cnt[k]||0));
     return `<div><h3 style="color:var(--${color})">${cat}</h3><div class="tbl"><table>
       <thead><tr><th>Planograma</th><th class="n">Medida</th><th>Tiendas</th></tr></thead><tbody>
@@ -375,7 +375,7 @@ function summary(){
         <td style="white-space:nowrap"><span class="minibar" style="width:${Math.max(4,(cnt[k]||0)/max*90)}px;background:var(--${color})"></span>${cnt[k]||0}</td></tr>`).join('')}
       </tbody></table></div></div>`;
   };
-  return `<section class="summary"><h3 style="margin-bottom:4px">Resumen de asignación</h3><p>${mode==='plan'?'Toca un planograma para ver su medida, su imagen y las tiendas que lo tienen.':'Toca un planograma para ver solo las tiendas que lo tienen.'}</p>
+  return `<section class="summary"><h3 style="margin-bottom:4px">Resumen de asignación</h3><p>Ordenados de mayor a menor número de tiendas. ${mode==='plan'?'Toca un planograma para ver su medida, su imagen y las tiendas que lo tienen.':'Toca un planograma para ver solo las tiendas que lo tienen.'}</p>
     <div class="sumgrid">${visCats().map(c=>tbl(c.name,c.k,c.color)).join('')}</div></section>${stockTable()}`;
 }
 function stockTable(){
